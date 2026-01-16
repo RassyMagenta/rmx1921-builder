@@ -1,0 +1,85 @@
+name: 'Preparation for the official start of the compilation steps.'
+
+runs:
+  using: 'composite'
+  steps:
+      - name: Get Kernel
+        shell: bash
+        run: |
+          cd $GITHUB_WORKSPACE
+          git clone --recursive "${{ env.KERNEL_SOURCE }}" -b "${{ env.KERNEL_BRANCH }}" device_kernel --depth=1
+
+          # Get Kernel Version
+
+          KERNEL_VERSION=$(head -n 3 $GITHUB_WORKSPACE/device_kernel/Makefile | grep -E 'VERSION|PATCHLEVEL' | awk '{print $3}' | paste -sd '.')
+          echo "KERNEL_VERSION=$(head -n 3 device_kernel/Makefile | grep -E 'VERSION|PATCHLEVEL' | awk '{print $3}' | paste -sd '.')" >> $GITHUB_ENV
+          echo "FIRST_VERSION=$(echo "$KERNEL_VERSION" | awk -F '.' '{print $1}')" >> $GITHUB_ENV
+          echo "SECOND_VERSION=$(echo "$KERNEL_VERSION" | awk -F '.' '{print $2}')" >> $GITHUB_ENV
+
+      - name: Get Kernel Arch
+        shell: bash
+        run: |
+          cd $GITHUB_WORKSPACE/device_kernel
+
+          if [[ -d "arch/arm64/configs" ]]; then
+            echo "KERNEL_ARCH=arm64" >> $GITHUB_ENV
+          else
+            echo "KERNEL_ARCH=arm" >> $GITHUB_ENV
+          fi
+
+      - name: Get Packing Tools
+        shell: bash
+        run: |
+          # Set ${{ env.PACK_METHOD }}
+
+          if [[ "${{ env.PACK_METHOD }}" == "Anykernel3" ]]; then
+            cd $GITHUB_WORKSPACE/device_kernel
+            if [[ -d "Anykernel3" ]]; then
+              echo "Found Anykernel3 in Kernel!"
+            else
+              git clone "${{ env.AK3_SOURCE }}" -b "${{ env.AK3_BRANCH }}" Anykernel3 --depth=1
+            fi
+          elif [[ "${{ env.PACK_METHOD }}" == "MKBOOTIMG" ]] || [ "${{ env.DEFCONFIG_FROM_BOOT }}" == "true" ]; then
+            cd $GITHUB_WORKSPACE
+            git clone https://android.googlesource.com/platform/system/tools/mkbootimg $GITHUB_WORKSPACE/mkboottools -b main-kernel-build-2024 --depth=1
+            ${{ env.CURLX }} ${{ env.BOOT_SOURCE }} $GITHUB_WORKSPACE/boot_source_${{ env.DEVICE_NAME }}.img
+            cd device_kernel
+          else
+            echo "Need packing method! "
+            false
+          fi
+          echo "PACK_METHOD=${{ env.PACK_METHOD }}" >> $GITHUB_ENV
+
+      - name: Get DEFCONFIG
+        if: env.DEFCONFIG_SOURCE != '' || env.DEFCONFIG_FROM_BOOT == 'true'
+        shell: bash
+        run: |
+          cd $GITHUB_WORKSPACE/device_kernel
+
+          if [[ -n "${{ env.DEFCONFIG_SOURCE }}" ]]; then
+            if [[ -d "device_kernel/arch/arm64/configs" ]]; then
+                ${{ env.CURLX }} ${{ env.DEFCONFIG_SOURCE }} device_kernel/arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
+            else
+                ${{ env.CURLX }} ${{ env.DEFCONFIG_SOURCE }} device_kernel/arch/arm/configs/${{ env.DEFCONFIG_NAME }}
+            fi
+          elif [[ -z "${{ env.DEFCONFIG_ORIGIN_IMAGE }}" ]]; then
+            if [[ "${{ env.DEFCONFIG_FROM_BOOT }}" == "true" ]]; then
+                if [[ -f "${{ env.BOOT_SOURCE }}" ]]; then
+                    ${{ env.CURLX }} "${{ env.BOOT_SOURCE }}" $GITHUB_WORKSPACE/boot.img
+                    $GITHUB_WORKSPACE/mkboottools/unpack_bootimg.py --boot_img $GITHUB_WORKSPACE/boot.img
+                    mv $GITHUB_WORKSPACE/out/kernel $GITHUB_WORKSPACE/device_kernel/Image
+                    if [[ -d "device_kernel/arch/arm64/configs" ]]; then
+                        $GITHUB_WORKSPACE/device_kernel/scripts/extract-ikconfig $GITHUB_WORKSPACE/device_kernel/Image > $GITHUB_WORKSPACE/device_kernel/arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
+                    else
+                        $GITHUB_WORKSPACE/device_kernel/scripts/extract-ikconfig $GITHUB_WORKSPACE/device_kernel/Image > $GITHUB_WORKSPACE/device_kernel/arch/arm/configs/${{ env.DEFCONFIG_NAME }}
+                    fi
+                fi
+            else
+                ${{ env.CURLX }} "${{ env.DEFCONFIG_ORIGIN_IMAGE }}" $GITHUB_WORKSPACE/device_kernel/Image
+                if [[ -d "device_kernel/arch/arm64/configs" ]]; then
+                    $GITHUB_WORKSPACE/device_kernel/scripts/extract-ikconfig $GITHUB_WORKSPACE/device_kernel/Image > $GITHUB_WORKSPACE/device_kernel/arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
+                else
+                    $GITHUB_WORKSPACE/device_kernel/scripts/extract-ikconfig $GITHUB_WORKSPACE/device_kernel/Image > $GITHUB_WORKSPACE/device_kernel/arch/arm/configs/${{ env.DEFCONFIG_NAME }}
+                fi
+            fi
+          fi
