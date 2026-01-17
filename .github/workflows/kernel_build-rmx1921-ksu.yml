@@ -34,8 +34,8 @@ env:
 
   BOOT_SOURCE : ""
 
-  HAVE_NO_DTBO : true
-  HAVE_NO_DTBO_TOOL : true
+  HAVE_NO_DTBO : false
+  HAVE_NO_DTBO_TOOL : false
 
   ROM_TEXT : "NON-FC_KSU"
 
