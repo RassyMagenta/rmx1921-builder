@@ -34,10 +34,10 @@ env:
 
   BOOT_SOURCE : ""
 
-  HAVE_NO_DTBO : false
-  HAVE_NO_DTBO_TOOL : false
+  HAVE_NO_DTBO : true
+  HAVE_NO_DTBO_TOOL : true
 
-  ROM_TEXT : "NON-FC_KSU"
+  ROM_TEXT : "NON-NFC_KSU"
 
   # Other env
   PYTHON_VERSION: "3" # Only 2(Ubuntu 22.04 and Ubuntu 20.04) or 3(Any OS Versions).
