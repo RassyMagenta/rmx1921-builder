@@ -1,0 +1,90 @@
+name: Build kernel_testing
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  # Device env
+  DEVICE_NAME : "Motorolaa"
+  DEVICE_CODENAME : "xpeng"
+
+  CUSTOM_CMDS : "CROSS_COMPILE=aarch64-linux-gnu- CLANG_TRIPLE=aarch64-linux-gnu-"
+  EXTRA_CMDS : "TARGET_BUILD_VARIANT=user TARGET_PRODUCT=xpeng_retbr"
+
+  KERNEL_SOURCE : "https://github.com/RassyMagenta/kernel_testing.git"
+  KERNEL_BRANCH : "Android-12"
+
+  CLANG_SOURCE : "https://github.com/ZyCromerZ/Clang/releases/download/12.0.1-20230207-release/Clang-12.0.1-20230207.tar.gz"
+  CLANG_BRANCH : ""
+
+  GCC_GNU : false
+  GCC_64_SOURCE : "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9.git"
+  GCC_64_BRANCH : "master-kernel-build-2021"
+  GCC_32_SOURCE : "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9.git"
+  GCC_32_BRANCH : "master-kernel-build-2021"
+
+  DEFCONFIG_SOURCE: ""
+  DEFCONFIG_NAME : "vendor/lahaina-qgki_defconfig"
+  DEFCONFIG_ORIGIN_IMAGE: ""
+  DEFCONFIG_FROM_BOOT: false
+
+  AK3_SOURCE : "https://github.com/RassyMagenta/AnyKernel3.git"
+  AK3_BRANCH : "rmx1921"
+
+  BOOT_SOURCE : ""
+
+  HAVE_NO_DTBO : false
+  HAVE_NO_DTBO_TOOL : false
+
+  ROM_TEXT : "Testing"
+
+  # Other env
+  PYTHON_VERSION: "3" # Only 2(Ubuntu 22.04 and Ubuntu 20.04) or 3(Any OS Versions).
+
+  PACK_METHOD: "Anykernel3" # Anykernel3 need SOURCE and BRANCH, MKBOOTIMG needn't it.
+
+  GENERATE_DTB: "yes" # if u kernel need DTB , but cannot auto generate it. (Only Anykernel3).
+  GENERATE_CHIP: "qcom" # only supported for qcom and mediatek.
+
+  BUILD_DEBUGGER: "true" # Output build errors.
+
+  BUILD_OTHER_CONFIG: "yes" # Merge config files.
+  MERGE_CONFIG_FILES: "vendor/moto-lahaina-xpeng.config"
+
+
+jobs:
+  build-kernel:
+    name: Build xpeng Kernel
+    runs-on: ubuntu-latest # u can changed to ubuntu 22.04, and need container set ubuntu-latest
+    # container: archlinux/archlinux:latest # if u need use arch linux -> archlinux/archlinux:latest or ubuntu 20.04 -> ubuntu:focal
+    env:
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
+
+    steps:
+      - name: ⏰ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⌛️ Compilation environment preparation
+        uses: ./.github/workflows/build-env
+
+      - name: ⚙️ Get neccssary tools
+        uses: ./.github/workflows/build-ready
+
+      - name: 🪛 Extra Kernel Options
+        run: |
+          # Only ${{ env.DEVICE_NAME }} use it.
+          cd $GITHUB_WORKSPACE/device_kernel
+
+          # Nothing
+
+      - name: 🚀 Build Process
+        uses: ./.github/workflows/build-process
+
+      - name: 🔩 Pack Process
+        uses: ./.github/workflows/pack-process
+
+      - name: ✏️ Upload Artifacts
+        uses: ./.github/workflows/upload-files
