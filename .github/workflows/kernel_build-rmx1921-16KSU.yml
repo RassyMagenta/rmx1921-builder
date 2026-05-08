@@ -34,7 +34,7 @@ env:
 
   BOOT_SOURCE : ""
 
-  HAVE_NO_DTBO : true
+  HAVE_NO_DTBO : false
   HAVE_NO_DTBO_TOOL : true
 
   ROM_TEXT : "NON-NFC_16KSU"
