@@ -1,0 +1,77 @@
+name: Build rmx1921 Kernel (clean Branch)
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  # Device identity
+  DEVICE_NAME: "Realme XT"
+  DEVICE_CODENAME: "RMX1921"
+
+  # build.config.common.clang uses Clang with this target triple. The GCC
+  # toolchains below provide the AArch64 and ARM32 binutils/cross-compilers.
+  CUSTOM_CMDS : "CLANG_TRIPLE=aarch64-linux-gnu-"
+  EXTRA_CMDS : "BRAND_SHOW_FLAG=realme LLVM=1 LLVM_IAS=1 ld-name=lld LD=ld.lld LDFINAL_vmlinux=ld.lld LLVM_AR=llvm-ar LLVM_NM=llvm-nm LLVM_OBJCOPY=llvm-objcopy LLVM_OBJDUMP=llvm-objdump LLVM_STRIP=llvm-strip KCFLAGS=-fmax-errors=0"
+
+  # Kernel source
+  KERNEL_SOURCE: "https://github.com/RassyMagenta/android_kernel_realme_sdm710.git"
+  KERNEL_BRANCH: "clean"
+
+  # build.config.common selects clang-r416183b.
+  CLANG_SOURCE : "https://github.com/ZyCromerZ/Clang/releases/download/13.0.1-20230207-release/Clang-13.0.1-20230207.tar.gz"
+  CLANG_BRANCH : ""
+
+  # These match the Android 4.9 GCC toolchain families referenced by build.config.common.
+  GCC_64_SOURCE: "https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git"
+  GCC_64_BRANCH: "lineage-19.1"
+  GCC_32_SOURCE: "https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git"
+  GCC_32_BRANCH: "lineage-19.1"
+
+  # Defconfig
+  DEFCONFIG_NAME : "sdm670-perf_defconfig"
+
+  # Packaging
+  PACK_METHOD: "AnyKernel3"
+  AK3_SOURCE: "https://github.com/RassyMagenta/AnyKernel3.git"
+  AK3_BRANCH: "rmx1921"
+  PACK_KMODULES: "false"
+  ROM_TEXT: "RMX1921"
+
+  # Runner setup
+  PYTHON_VERSION: "3"
+
+jobs:
+  build-kernel:
+    name: Realme XT (Android branch clean)
+    runs-on: ubuntu-22.04
+    # Supported alternatives used by mainline are ubuntu-24.04/22.04 and
+    # containers such as ubuntu:focal or archlinux/archlinux:latest.
+    env:
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
+
+    steps:
+      - name: ⏰ Checkout repository
+        uses: actions/checkout@v6
+
+      - name: ⌛️ Compilation environment preparation
+        uses: ./.github/workflows/build-env
+
+      - name: ⚙️ Get necessary tools
+        uses: ./.github/workflows/build-ready
+
+      - name: 🪛 Extra Kernel Options
+        run: |
+          # Only ${{ env.DEVICE_NAME }} use it.
+          cd $GITHUB_WORKSPACE/device_kernel
+
+      - name: 🚀 Build Process
+        uses: ./.github/workflows/build-process
+
+      - name: 🔩 Pack Process
+        uses: ./.github/workflows/pack-process
+
+      - name: ✏️ Upload Artifacts
+        uses: ./.github/workflows/upload-files
